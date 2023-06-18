@@ -1,0 +1,1332 @@
+---
+title: "Summer 21 & 22 Enrichment Experiment Data Analysis"
+Author: Brook Tilahun
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# general purpose libraries
+library(tidyverse)
+library(caret)
+library(ggplot2)
+library(ggsignif)
+library(gridExtra)
+library(plotly)
+library(gapminder)
+library (ggpubr)
+library(remotes)
+library(hrbrthemes)
+library(viridis)
+library("FactoMineR")
+library("factoextra")
+```
+
+#Github integration
+```{r eval=FALSE, include=FALSE}
+
+# Load the required libraries
+#library(httr)
+#library(git2r)
+
+# Set the GitHub access token
+#access_token <- "my_access_token"
+
+# Set the URL of the CSV file on GitHub
+#csv_url <- "https://github.com/my_username/my_repo/my_file.csv"
+
+# Get the CSV file from GitHub using the access token
+#response <- GET(csv_url, authenticate(access_token))
+
+# Parse the CSV file and store it as a data frame
+#csv_data <- content(response, "text") %>% read_csv()
+
+# Use the data frame as needed...
+```
+
+# Enrichment Data Analysis in R
+
+This data has already been analyzed in Excel. Now, we are going to recruit the power of R to do a deeper analysis. 
+
+The raw data was loaded up into R by splitting the master data by week and loading it using the import dataset function. We will utilize the pipe function when selecting the specific tests.
+
+Let's first load the data and run some simple summaries.
+
+## Load Data
+```{r, echo=FALSE}
+#Data22<- Data_Final_1_
+#Data22<- Data22%>% mutate(ID = row_number()) %>% relocate(ID)
+#writexl::write_xlsx(Perr_habitation,"/Users/hp/Downloads/Perr_habitation.xlsx" )
+#write.csv(Data22,"/Users/hp/Downloads/Data22PreEnric.csv", row.names = FALSE)
+```
+
+```{r , echo=FALSE}
+#I have the data uploaded in github so I can just input the URL. If you have the data locally use the file path instead. 
+Data22 <-read.csv("https://raw.githubusercontent.com/brooktila/Neuro/main/Data22PreEnric.csv")
+PrefData22<-read.csv("https://raw.githubusercontent.com/brooktila/Neuro/main/PrefData22.csv")
+Week_0 <-read.csv("https://raw.githubusercontent.com/brooktila/Neuro/main/Week_0.csv") 
+Week_1 <-read.csv("https://raw.githubusercontent.com/brooktila/Neuro/main/Week_1.csv") 
+Week_2 <-read.csv("https://raw.githubusercontent.com/brooktila/Neuro/main/Week_2.csv")
+
+```
+
+## Calculate the percent error for time 
+Calculating this to determine if we need to re-run video in Ethovision and also understand the how the percent error might affect any conclusions we make. 
+
+```{r ,echo=FALSE}
+# This code calculates the percent error for the sum of columns 16, 20, and 24 for each trial
+# for 3 different data frames: Week_0, Week_1, and Week_2
+
+# Calculate percent error for Week_0 data frame
+Perr_0 <- Week_0 %>% # Use the Week_0 data frame as the starting point
+  select("Trials","In_zone...16","In_zone...20","In_zone...24") # Select only the columns of interest
+Perr_0 <- Perr_0[-c(1,2,3),] # Remove the top 3 rows (errors in the data export from ethovision)
+Perr_0$tot_time <- (as.numeric(Perr_0$In_zone...16) + as.numeric(Perr_0$In_zone...20) + as.numeric(Perr_0$In_zone...24)) # Calculate the total time spent in the relevant zones
+Perr_0$per_err <- ((Perr_0$tot_time - 360) * 100 / 360) # Calculate the percent error by comparing the total time to the reference time of 6 minutes (360 seconds)
+
+# Calculate percent error for Week_1 data frame
+Perr_1 <- Week_1 %>% # Use the Week_1 data frame as the starting point
+  select("Trial","...16","...20","...24") # Select only the columns of interest
+Perr_1 <- Perr_1[-c(1,2,3),] # Remove the top 3 rows (likely due to errors in the data export from ethovision)
+Perr_1$tot_time <- (as.numeric(Perr_1$...16) + as.numeric(Perr_1$...20) + as.numeric(Perr_1$...24)) # Calculate the total time spent in the relevant zones
+Perr_1$per_err <- ((Perr_1$tot_time - 360) * 100 / 360) # Calculate the percent error by comparing the total time to the reference time of 6 minutes (360 seconds)
+
+# Calculate percent error for Week_2 data frame
+Perr_2 <- Week_2 %>% # Use the Week_2 data frame as the starting point
+  select("Trial","...16","...20","...24") # Select only the columns of interest
+Perr_2 <- Perr_2[-c(1,2,3),] # Remove the top 3 rows (likely due to errors in the data export from ethovision)
+Perr_2$tot_time <- (as.numeric(Perr_2$...16) + as.numeric(Perr_2$...20) + as.numeric(Perr_2$...24)) # Calculate the total time spent in the relevant zones
+Perr_2$per_err <- ((Perr_2$tot_time - 360) * 100 / 360) # Calculate the percent error by comparing the total time to the reference time of 6 minutes (360 seconds)
+
+# Print a summary of the percent error for each data frame
+summary(Perr_0$per_err)
+summary(Perr_1$per_err)
+summary(Perr_2$per_err)
+
+#Create a ggplot object for the Week_0 data frame
+p <- ggplot(Perr_0, aes(x=Trials, y=per_err)) + # Use the Perr_0 data frame to create a scatter plot with the x-axis showing the trial number and the y-axis showing the percent error
+geom_point() # Use geom_point to plot the points for each trial
+
+#Use ggplotly to create an interactive version of the plot for Week_0
+ggplotly(p)
+
+#Create a ggplot object for the Week_1 data frame
+q <- ggplot(Perr_1, aes(x=Trial, y=per_err)) + # Use the Perr_1 data frame to create a scatter plot with the x-axis showing the trial number and the y-axis showing the percent error
+geom_point() # Use geom_point to plot the points for each trial
+
+#Use ggplotly to create an interactive version of the plot for Week_1
+ggplotly(q)
+
+#Create a ggplot object for the Week_2 data frame
+r <- ggplot(Perr_2, aes(x=Trial, y=per_err)) + # Use the Perr_2 data frame to create a scatter plot with the x-axis showing the trial number and the y-axis showing the percent error
+geom_point() # Use geom_point to plot the points for each trial
+
+#Use ggplotly to create an interactive version of the plot for Week_2
+ggplotly(r)
+
+```
+## Calculate the percent error for time 2022 sample
+
+Percentage error calculations for Pre-enrichment data samples
+
+```{r,echo=FALSE}
+# Filter the data to exclude rows with "Habitation" in the "Type" column
+Perr_6min <- Data22 %>% filter (Type != "Habitation") %>% 
+                select("ID","Type","Subject","Sex","In_zone_2_cumulative","In_zone_1_cumulative","In_zone_N_cumulative")
+
+# Calculate the total time spent in the zones
+Perr_6min$tot_time <- (Perr_6min$In_zone_2_cumulative + Perr_6min$In_zone_1_cumulative + Perr_6min$In_zone_N_cumulative)
+
+# Calculate the percentage error for the total time
+Perr_6min$per_err <- (((Perr_6min$tot_time - 360) / 360) * 100)
+
+# Filter the data to only include rows with "Habitation" in the "Type" column
+Perr_habitation <- Data22 %>% filter (Type == "Habitation") %>% 
+                      select("ID","Type","Subject","Sex","In_zone_2_cumulative","In_zone_1_cumulative","In_zone_N_cumulative")
+
+# Calculate the total time spent in the zones
+Perr_habitation$tot_time <- (Perr_habitation$In_zone_2_cumulative + Perr_habitation$In_zone_1_cumulative + Perr_habitation$In_zone_N_cumulative)
+
+# Calculate the percentage error for the total time
+Perr_habitation$per_err <- ((Perr_habitation$tot_time - 300) * 100 / 300)
+
+# Get summary statistics for the percentage error for the 6-minute data
+summary(Perr_6min$per_err)
+
+# Get summary statistics for the percentage error for the habitation data
+summary(Perr_habitation$per_err)
+
+# Create a scatterplot of the percentage error for the 6-minute data
+t <- ggplot(Perr_6min, aes(x = ID, y = per_err)) + geom_point()
+ggplotly(t)
+
+# Create a scatterplot of the percentage error for the habitation data
+u <- ggplot(Perr_habitation, aes(x = ID, y = per_err)) + geom_point()
+ggplotly(u)
+```
+Percentage error calculations for Preference Testing
+
+```{r eval=FALSE, include=FALSE}
+Perr_6min<- PrefData22 %>%  select("Subject","Test","In_zone_2_cumulative","In_zone_1_cumulative","In_zone_N_cumulative") 
+Perr_6min$tot_time<-(Perr_6min$In_zone_2_cumulative+Perr_6min$In_zone_1_cumulative+Perr_6min$In_zone_N_cumulative)
+Perr_6min$per_err<- (((Perr_6min$tot_time-360)/360)*100)
+x <- ggplot(Perr_6min, aes(x=Subject, y=per_err)) + 
+    geom_point()
+ggplotly(x)
+```
+
+
+# Novel Tank test
+
+## Calculate time spent at Novel Tank Zone
+```{r echo=FALSE}
+# Filter Week_0 data to only include rows where the value in column "...1" is "NT"
+# and select only the columns of interest
+W0_NT <- Week_0 %>% filter(...1=="NT") %>%
+  select("...1","Subject","sex","Week_of_enrichment","Treatment","In_zone...16","In_zone...20","In_zone...24") %>%
+  rename(Test="...1", Sex="sex", Week="Week_of_enrichment", Top_zone="In_zone...16", Middle_zone="In_zone...20", Bottom_zone="In_zone...24")
+
+# Remove the first three rows of the dataset
+W0_NT <- W0_NT[-c(1,2,3),]
+
+# Convert the "Top_zone", "Middle_zone", and "Bottom_zone" columns from character to numeric
+W0_NT$Top_zone <- as.numeric(as.character(W0_NT$Top_zone))
+W0_NT$Middle_zone <- as.numeric(as.character(W0_NT$Middle_zone))
+W0_NT$Bottom_zone <- as.numeric(as.character(W0_NT$Bottom_zone))
+
+# Calculate the percentage of time spent in each of the three zones
+W0_NT$Top_zone_pt <- (W0_NT$Top_zone / (W0_NT$Top_zone + W0_NT$Middle_zone + W0_NT$Bottom_zone)) * 100
+W0_NT$Middle_zone_pt <- (W0_NT$Middle_zone / (W0_NT$Top_zone + W0_NT$Middle_zone + W0_NT$Bottom_zone)) * 100
+W0_NT$Bottom_zone_pt <- (W0_NT$Bottom_zone / (W0_NT$Top_zone + W0_NT$Middle_zone + W0_NT$Bottom_zone)) * 100
+
+```
+
+```{r echo=FALSE}
+W1_NT<- Week_1 %>% filter(Test=="NT")%>%select("Test","Subject","Week_of_Enrichment","Treatment_","...16","...20","...24") %>% rename(Week="Week_of_Enrichment",Treatment="Treatment_",Top_zone="...16",Middle_zone="...20",Bottom_zone="...24")
+W1_NT<- W1_NT[-c(1,2,3),]
+
+W1_NT$Top_zone<- as.numeric(as.character(W1_NT$Top_zone))
+W1_NT$Middle_zone<- as.numeric(as.character(W1_NT$Middle_zone))
+W1_NT$Bottom_zone<- as.numeric(as.character(W1_NT$Bottom_zone))
+
+W1_NT$Top_zone_pt<- ((W1_NT$Top_zone)/(W1_NT$Top_zone+ W1_NT$Middle_zone+ W1_NT$Bottom_zone))*100 #percent time in top zone
+
+W1_NT$Middle_zone_pt<- ((W1_NT$Middle_zone)/(W1_NT$Top_zone+ W1_NT$Middle_zone+ W1_NT$Bottom_zone))*100 #percent time in Middle zone
+
+W1_NT$Bottom_zone_pt<- ((W1_NT$Bottom_zone)/(W1_NT$Top_zone+ W1_NT$Middle_zone+ W1_NT$Bottom_zone))*100 #percent time in Bottom zone
+
+```
+
+```{r echo=FALSE}
+W2_NT<- Week_2 %>% filter(Test=="NT")%>%select("Test","Subject","Week_of_Enrichment","Treatment","...16","...20","...24") %>% rename(Week="Week_of_Enrichment",Top_zone="...16",Middle_zone="...20",Bottom_zone="...24")
+W2_NT<- W2_NT[-c(1,2,3),]
+
+W2_NT$Top_zone<- as.numeric(as.character(W2_NT$Top_zone))
+W2_NT$Middle_zone<- as.numeric(as.character(W2_NT$Middle_zone))
+W2_NT$Bottom_zone<- as.numeric(as.character(W2_NT$Bottom_zone))
+
+W2_NT$Top_zone_pt<- ((W2_NT$Top_zone)/(W2_NT$Top_zone+ W2_NT$Middle_zone+ W2_NT$Bottom_zone))*100 #percent time in top zone
+
+W2_NT$Middle_zone_pt<- ((W2_NT$Middle_zone)/(W2_NT$Top_zone+ W2_NT$Middle_zone+ W2_NT$Bottom_zone))*100 #percent time in Middle zone
+
+W2_NT$Bottom_zone_pt<- ((W2_NT$Bottom_zone)/(W2_NT$Top_zone+ W2_NT$Middle_zone+ W2_NT$Bottom_zone))*100 #percent time in Bottom zone
+
+```
+
+
+```{r echo=FALSE}
+# Create a data frame containing the percentage of time spent in each of the three zones,
+# the treatment, and the zone (top, middle, or bottom) for each row
+grp_W0 <- data.frame(x = c(W0_NT$Top_zone_pt, W0_NT$Middle_zone_pt, W0_NT$Bottom_zone_pt),
+                     y = W0_NT$Treatment,
+                     group = c(rep("Top_zone", nrow(W0_NT)),
+                               rep("Middle_zone", nrow(W0_NT)),
+                               rep("Bottom_zone", nrow(W0_NT))))
+
+# Create a boxplot using the data frame, with the x and y values specified using the aes() function
+# and the fill color for the boxes set using the scale_fill_viridis() function
+ggplot(grp_W0, aes(y,x,cols=group, color = group))+
+  geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+    
+    # Add jitter to the plot using the geom_jitter() function
+    geom_jitter(color="black", size=0.4, alpha=0.9) +
+  
+  # Add a title and a legend for the color aesthetic using the labs() function
+  labs(title = "Plot of time spent in Novel Tank zones @ W0", color = "Zone")
+```
+
+```{r echo=FALSE}
+grp_W1 <- data.frame(x = c(W1_NT$Top_zone_pt, W1_NT$Middle_zone_pt, W1_NT$Bottom_zone_pt),
+                       y = W1_NT$Treatment,
+                       group = c(rep("Top_zone", nrow(W1_NT)),
+                                 rep("Middle_zone", nrow(W1_NT)),
+                                 rep("Bottom_zone", nrow(W1_NT))))
+
+ggplot(grp_W1, aes(y,x,cols=group, color = group))+
+  geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+    geom_jitter(color="black", size=0.4, alpha=0.9) +
+  labs(title = "Plot of time spent in Novel Tank zones @ W1", color = "Zone")
+```
+
+```{r echo=FALSE}
+grp_W2 <- data.frame(x = c(W2_NT$Top_zone_pt, W2_NT$Middle_zone_pt, W2_NT$Bottom_zone_pt),
+                       y = W2_NT$Treatment,
+                       group = c(rep("Top_zone", nrow(W2_NT)),
+                                 rep("Middle_zone", nrow(W2_NT)),
+                                 rep("Bottom_zone", nrow(W2_NT))))
+
+ggplot(grp_W2, aes(y,x,cols=group, color = group))+
+  geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+    geom_jitter(color="black", size=0.4, alpha=0.9) +
+  labs(title = "Plot of time spent in Novel Tank zones @ W2", color = "Zone")
+```
+
+
+# Novel Object test
+
+## Data wrangling and sorting
+
+Clean up the data based on the necessary values. I'm keeping the Weeks separate so we can compare with the 2022 data easily + one r function away from combining all.
+
+```{r, echo=FALSE}
+# Select the columns of interest from the Week_0 data frame
+W0_NO <- Week_0 %>% 
+  select("...1","Subject","sex","Week_of_enrichment","Novel_object_side","Novel_object_.","Treatment","Novel_Object_Zone...32","Novel_Object_Zone...35") %>% 
+  # Rename the columns with more descriptive names
+  rename(Test="...1",Sex="sex",Week="Week_of_enrichment",Novel_Object_Side="Novel_object_side",Novel_object="Novel_object_.",Object_Zone_1="Novel_Object_Zone...32",Object_Zone_2="Novel_Object_Zone...35")
+
+# Remove the first three rows from the data frame
+W0_NO <- W0_NO[-c(1,2,3),]
+
+# Convert the Object_Zone_1 and Object_Zone_2 columns to numeric data type
+W0_NO$Object_Zone_1 <- as.numeric(as.character(W0_NO$Object_Zone_1))
+W0_NO$Object_Zone_2 <- as.numeric(as.character(W0_NO$Object_Zone_2))
+
+# Select the columns of interest from the Week_1 data frame
+W1_NO <- Week_1 %>% 
+  select("Test","Subject","Sex","Week_of_Enrichment","Novel_Object_Side","Novel_object_","Treatment_","...32","...35") %>% 
+  # Rename the columns with more descriptive names
+  rename(Week="Week_of_Enrichment",Novel_object="Novel_object_", Treatment="Treatment_",Object_Zone_1="...32",Object_Zone_2="...35")
+
+# Remove the first three rows from the data frame
+W1_NO <- W1_NO[-c(1,2,3),]
+
+# Convert the Object_Zone_1 and Object_Zone_2 columns to numeric data type
+W1_NO$Object_Zone_1 <- as.numeric(as.character(W1_NO$Object_Zone_1))
+W1_NO$Object_Zone_2 <- as.numeric(as.character(W1_NO$Object_Zone_2))
+
+# Select the columns of interest from the Week_2 data frame
+W2_NO <- Week_2 %>% 
+  select("Test","Subject","Sex","Week_of_Enrichment","Novel_Object...9","Novel_Object...10","Treatment","...32","...35") %>% 
+  # Rename the columns with more descriptive names
+  rename(Week="Week_of_Enrichment",Novel_Object_Side="Novel_Object...9",Novel_object="Novel_Object...10", Object_Zone_1="...32",Object_Zone_2="...35")
+
+# Remove the first three rows from the data frame
+W2_NO <- W2_NO[-c(1,2,3),]
+
+# Use the mutate function to recode the Treatment column to have more descriptive values
+W2_NO <-W2_NO %>%mutate(Treatment = recode(Treatment, control = 'Control', enriched = 'Enriched'))
+
+#Convert the Object_Zone_1 and Object_Zone_2 columns to numeric data type
+W2_NO$Object_Zone_1 <- as.numeric(as.character(W2_NO$Object_Zone_1))
+W2_NO$Object_Zone_2 <- as.numeric(as.character(W2_NO$Object_Zone_2))
+
+```
+
+For 2022 samples
+
+```{r, echo=FALSE}
+# Convert the Tank column to a factor and specify the levels
+Data22$Tank <- as.factor(as.character(Data22$Tank))
+
+# Use the fct_recode function to recode the values in the Tank column
+Data22$Tank <- fct_recode(Data22$Tank, Enriched = "E1", Control = "C1", Enriched = "E2", Control = "C2", Enriched = "E3", Control = "C3")
+
+# Select the columns of interest from the Data22 data frame
+W0_NO22 <- Data22 %>% 
+  select("ID","Type","Tank","Subject","Sex","Object_placement","Object_1_zone_Freq...20","Object_2_zone_Freq...23") %>% 
+  # Rename the columns with more descriptive names
+  rename(Test= "Type",Treatment ="Tank", Novel_Object_Side="Object_placement", Object_Zone_1="Object_1_zone_Freq...20",Object_Zone_2="Object_2_zone_Freq...23")
+
+```
+
+```{r echo=FALSE}
+PrefData22<- PrefData22%>%rename(Subject= "ID", Object_Zone_1="Object_1_zone_Cumulative",Object_Zone_2="Object_2_zone_Cumulative")
+```
+
+
+Split the data by Retention interval.Cleaned data has all variables as Characters except for Object_Zone_1 & 2. I'll calculate percent time first for each zone and sort based on object side.
+
+```{r, echo=FALSE}
+#Week 0
+
+W0_NO$Percent_time_zone1<- ((W0_NO$Object_Zone_1)/(W0_NO$Object_Zone_1 + W0_NO$Object_Zone_2))*100 #percent time in zone 1
+W0_NO$Percent_time_zone2<- ((W0_NO$Object_Zone_2)/(W0_NO$Object_Zone_1 + W0_NO$Object_Zone_2))*100 #percent time in zone 2
+W0_paired<- W0_NO
+W0_NO_RI6<- W0_NO %>% filter(Test=="NO_RI_6")
+W0_NO<- W0_NO %>% filter(Test=="NO_RI_1")
+temp1<- W0_NO %>% filter(Novel_Object_Side == '1') %>% select(Test, Subject, Week, Sex, Novel_object, Treatment,Percent_time_zone2) #i.e, select FO
+temp2<- W0_NO %>% filter(Novel_Object_Side == '2') %>% select(Test, Subject, Week,Sex, Novel_object, Treatment, Percent_time_zone1)
+
+```
+
+```{r, echo=FALSE}
+#Week 1
+
+
+W1_NO$Percent_time_zone1<- ((W1_NO$Object_Zone_1)/(W1_NO$Object_Zone_1 + W1_NO$Object_Zone_2))*100
+W1_NO$Percent_time_zone2<- ((W1_NO$Object_Zone_2)/(W1_NO$Object_Zone_1 + W1_NO$Object_Zone_2))*100
+W1_paired<- W1_NO
+W1_NO_RI6<- W1_NO %>% filter(Test=="NO_RI_6")
+W1_NO<- W1_NO %>% filter(Test=="NO_RI_1")
+temp1W1<- W1_NO %>% filter(Novel_Object_Side == '1') %>% select(Test, Subject, Week,Sex, Novel_object, Treatment,Percent_time_zone2)
+temp2W1<- W1_NO %>% filter(Novel_Object_Side == '2') %>% select(Test, Subject, Week,Sex, Novel_object, Treatment, Percent_time_zone1)
+```
+
+```{r, echo=FALSE}
+#Week 2
+
+W2_NO$Percent_time_zone1<- ((W2_NO$Object_Zone_1)/(W2_NO$Object_Zone_1 + W2_NO$Object_Zone_2))*100
+W2_NO$Percent_time_zone2<- ((W2_NO$Object_Zone_2)/(W2_NO$Object_Zone_1 + W2_NO$Object_Zone_2))*100
+W2_paired<- W2_NO
+W2_NO_RI6<- W2_NO %>% filter(Test=="NO_RI_6")
+W2_NO<- W2_NO %>% filter(Test=="NO_RI_1")
+temp1W2<- W2_NO %>% filter(Novel_Object_Side == '1') %>% select(Test, Subject, Week,Sex, Novel_object, Treatment,Percent_time_zone2)
+temp2W2<- W2_NO %>% filter(Novel_Object_Side == '2') %>% select(Test, Subject, Week,Sex, Novel_object, Treatment, Percent_time_zone1)
+```
+
+For 2022 data we can use the FO test to measure the object side preference so we won't split the data based on side. Calculating percent time on each side. 
+
+```{r echo=FALSE}
+W0_NO22$Percent_time_zone1<- ((W0_NO22$Object_Zone_1)/(W0_NO22$Object_Zone_1 + W0_NO22$Object_Zone_2))*100
+W0_NO22$Percent_time_zone2<- ((W0_NO22$Object_Zone_2)/(W0_NO22$Object_Zone_1 + W0_NO22$Object_Zone_2))*100
+W0_NO22$Test <- as.factor(as.character(W0_NO22$Test))
+is.nan.data.frame <- function(x) #function to remove NaN values introduced by dividing by Zeros
+do.call(cbind, lapply(x, is.nan))
+W0_NO22[is.nan(W0_NO22)] <- 0
+WO22_paired<- W0_NO22
+WO22_NO_RI6<- W0_NO22 %>% filter(Test=="Preference NO21b vs FO21")
+W0_NO22 <- W0_NO22 %>% filter(Test=="Preference NO21a vs FO21")
+Dtemp1<- W0_NO22 %>% filter(Novel_Object_Side == 'Left') %>% select(ID,Test,Treatment, Subject, Sex,Percent_time_zone2)
+Dtemp2<- W0_NO22 %>% filter(Novel_Object_Side == 'Right') %>% select(ID, Test,Treatment, Subject, Sex,Percent_time_zone1)
+```
+
+##Preference testing 2022
+```{r echo=FALSE}
+PrefData22$Percent_time_zone1<- ((PrefData22$Object_Zone_1)/(PrefData22$Object_Zone_1 + PrefData22$Object_Zone_2))*100
+PrefData22$Percent_time_zone2<- ((PrefData22$Object_Zone_2)/(PrefData22$Object_Zone_1 + PrefData22$Object_Zone_2))*100
+is.nan.data.frame <- function(x) #function to remove NaN values introduced by dividing by Zeros
+do.call(cbind, lapply(x, is.nan))
+PrefData22[is.nan(PrefData22)] <- 0
+Ptemp1<- PrefData22 %>% filter(NO_placement== 'Left') %>% select(Test,NO, Subject,Percent_time_zone2)
+Ptemp2<- PrefData22 %>% filter(NO_placement == 'Right') %>% select(Test,NO, Subject,Percent_time_zone1)
+Ptemp2<- Ptemp2%>% rename(Percent_time_zone2=Percent_time_zone1)
+Pref_22_combined <- rbind(Ptemp1,Ptemp2)
+Pref_22_combined <- Pref_22_combined%>% rename(Percent_time_obj=Percent_time_zone2)
+Pref_22_combined$NO <- as.factor(as.character(Pref_22_combined$NO))
+#NO preference 
+Pref_22_combined %>%
+  ggplot( aes(x= NO, y= Percent_time_obj, fill= NO))+
+  geom_violin(width=1) + 
+  geom_boxplot(width=1, color="black", alpha=0.2) +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  labs(title = "Plot of time spent with Familair Objects, Preference testing")+
+    geom_jitter(color="black", size=0.4, alpha=0.9) 
+#Note: small sample size 13 x 14
+
+#Side preference 
+PrefData22 %>% filter(NO_placement == 'Right') %>%
+  ggplot( aes(x= NO, y= Percent_time_zone1, fill = NO))+
+  geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+    geom_jitter(color="black", size=0.4, alpha=0.9)    +
+  geom_signif(comparisons = list(c("A", "B")), 
+              map_signif_level=TRUE)+
+  labs(title = "Plot of time spent with Familiar Object at zone 1, Preference 22")
+
+PrefData22 %>% filter(NO_placement == 'Left') %>%
+  ggplot( aes(x= NO, y= Percent_time_zone2, fill = NO))+
+  geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+    geom_jitter(color="black", size=0.4, alpha=0.9)    +
+  geom_signif(comparisons = list(c("A", "B")), 
+              map_signif_level=TRUE)+
+  labs(title = "Plot of time spent with Familiar Object at zone 2, Preference 22")
+
+#T-Test Object Preference
+NOa<-Pref_22_combined %>% filter(NO == 'B') %>% select(Percent_time_obj)
+NOb<-Pref_22_combined %>% filter(NO == 'A')  %>% select(Percent_time_obj)
+t.test(NOa,NOb)
+
+#T-Test Side-Preference regardless of Object
+t.test(PrefData22$Percent_time_zone1,PrefData22$Percent_time_zone2, paired = TRUE)
+```
+
+
+## Standard error for time spent on each side
+Lets calculate a quick summary and errors for temp1 and same for temp2
+```{r, echo=FALSE}
+# Calculates mean, sd, se and IC
+my_sum1 <- temp1 %>%
+  group_by(Treatment) %>%  # group data by Treatment
+  summarise( 
+    n=n(),  # calculate number of observations in each group
+    mean=mean(Percent_time_zone2),  # calculate mean of Percent_time_zone2 in each group
+    sd=sd(Percent_time_zone2)  # calculate standard deviation of Percent_time_zone2 in each group
+  ) %>%
+  mutate( se=sd/sqrt(n))  %>% # calculate standard error of Percent_time_zone2 in each group
+  mutate( ic=se * qt((1-0.05)/2 + .5, n-1))  # calculate confidence interval of Percent_time_zone2 in each group
+# Standard Error
+g1<-ggplot(my_sum1) +  # create a new ggplot with data from my_sum1
+  geom_bar( aes(x=Treatment, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +  # add a bar plot to the plot
+  geom_errorbar( aes(x=Treatment, ymin=mean-se, ymax=mean+se), width=0.4, colour="orange", alpha=0.9, size=1.5) +  # add error bars to the plot
+  ggtitle("The mean time spent with Object side 2 Week 0") + ylim (0,100)  # add a title and set y-axis limits
+summary(temp1)  # calculate summary statistics for temp1
+
+```
+
+```{r, echo=FALSE}
+# Calculates mean, sd, se and IC for temp 2
+my_sum2 <- temp2 %>%
+  group_by(Treatment) %>%
+  summarise( 
+    n=n(),
+    mean=mean(Percent_time_zone1),
+    sd=sd(Percent_time_zone1)
+  ) %>%
+  mutate( se=sd/sqrt(n))  %>%
+  mutate( ic=se * qt((1-0.05)/2 + .5, n-1))# confidence interval
+# Standard Error
+g2<-ggplot(my_sum2) +
+  geom_bar( aes(x=Treatment, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
+  geom_errorbar( aes(x=Treatment, ymin=mean-se, ymax=mean+se), width=0.4, colour="orange", alpha=0.9, size=1.5) +
+  ggtitle("The mean time spent with Object side 1 Week 0") + ylim (0,100)
+summary(temp2)
+```
+
+Lets calculate a quick summary and errors for temp1 and same for temp2 for week 1
+
+```{r, echo=FALSE}
+# Calculates mean, sd, se and IC
+my_sum1W1 <- temp1W1 %>%
+  group_by(Treatment) %>%
+  summarise( 
+    n=n(),
+    mean=mean(Percent_time_zone2),
+    sd=sd(Percent_time_zone2)
+  ) %>%
+  mutate( se=sd/sqrt(n))  %>%
+  mutate( ic=se * qt((1-0.05)/2 + .5, n-1))# confidence interval
+# Standard Error
+g1W1<-ggplot(my_sum1W1) +
+  geom_bar( aes(x=Treatment, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
+  geom_errorbar( aes(x=Treatment, ymin=mean-se, ymax=mean+se), width=0.4, colour="orange", alpha=0.9, size=1.5) +
+  ggtitle("The mean time spent with Object side 2 Week 1") + ylim (0,100)
+summary(temp1W1)
+```
+
+
+```{r, echo=FALSE}
+# Calculates mean, sd, se and IC for temp 2
+my_sum2W1 <- temp2W1 %>%
+  group_by(Treatment) %>%
+  summarise( 
+    n=n(),
+    mean=mean(Percent_time_zone1),
+    sd=sd(Percent_time_zone1)
+  ) %>%
+  mutate( se=sd/sqrt(n))  %>%
+  mutate( ic=se * qt((1-0.05)/2 + .5, n-1))# confidence interval
+# Standard Error
+g2W1<-ggplot(my_sum2W1) +
+  geom_bar( aes(x=Treatment, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
+  geom_errorbar( aes(x=Treatment, ymin=mean-se, ymax=mean+se), width=0.4, colour="orange", alpha=0.9, size=1.5) +
+  ggtitle("The mean time spent with Object side 1 Week 1") + ylim (0,100)
+summary(temp2W1)
+```
+
+Lets calculate a quick summary and errors for temp1 and same for temp2 for week 2
+
+```{r, echo=FALSE}
+# Calculates mean, sd, se and IC
+my_sum1W2 <- temp1W2 %>%
+  group_by(Treatment) %>%
+  summarise( 
+    n=n(),
+    mean=mean(Percent_time_zone2),
+    sd=sd(Percent_time_zone2)
+  ) %>%
+  mutate( se=sd/sqrt(n))  %>%
+  mutate( ic=se * qt((1-0.05)/2 + .5, n-1))# confidence interval
+# Standard Error
+g1W2<-ggplot(my_sum1W2) +
+  geom_bar( aes(x=Treatment, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
+  geom_errorbar( aes(x=Treatment, ymin=mean-se, ymax=mean+se), width=0.4, colour="orange", alpha=0.9, size=1.5) +
+  ggtitle("The mean time spent with Object side 2 Week 2") + ylim (0,100)
+summary(temp1W2)
+```
+
+
+```{r, echo=FALSE}
+# Calculates mean, sd, se and IC for temp 2
+my_sum2W2 <- temp2W2 %>%
+  group_by(Treatment) %>%
+  summarise( 
+    n=n(),
+    mean=mean(Percent_time_zone1),
+    sd=sd(Percent_time_zone1)
+  ) %>%
+  mutate( se=sd/sqrt(n))  %>%
+  mutate( ic=se * qt((1-0.05)/2 + .5, n-1))# confidence interval
+# Standard Error
+g2W2<-ggplot(my_sum2W2) +
+  geom_bar( aes(x=Treatment, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
+  geom_errorbar( aes(x=Treatment, ymin=mean-se, ymax=mean+se), width=0.4, colour="orange", alpha=0.9, size=1.5) +
+  ggtitle("The mean time spent with Object side 1 Week 2") + ylim (0,100)
+summary(temp2W2)
+```
+
+
+```{r}
+grid.arrange(g1, g2, ncol = 2)   #WEEK 0
+grid.arrange(g1W1, g2W1, ncol = 2)   #WEEK 1
+grid.arrange(g1W2, g2W2, ncol = 2)   #WEEK 2
+```
+
+Lets calculate a quick summary and errors for FO vs NOa and FO vs NOb for pre-enrichment (w0) 2022
+
+```{r, echo=FALSE}
+# Calculates mean, sd, se and IC for Dtemp1 and Dtemp2. I.e, FO on side 1 or side 2
+my_sum1W022 <- Dtemp1 %>%
+  group_by(Treatment) %>%
+  summarise( 
+    n=n(),
+    mean=mean(Percent_time_zone2),
+    sd=sd(Percent_time_zone2)
+  ) %>%
+  mutate( se=sd/sqrt(n))  %>%
+  mutate( ic=se * qt((1-0.05)/2 + .5, n-1))# confidence interval
+# Standard Error
+g2W022<-ggplot(my_sum1W022) +
+  geom_bar( aes(x=Treatment, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
+  geom_errorbar( aes(x=Treatment, ymin=mean-se, ymax=mean+se), width=0.4, colour="orange", alpha=0.9, size=1.5) +
+  ggtitle("The mean time spent with Object side 2 22'") + ylim (0,100)
+summary(my_sum1W022)
+```
+
+```{r , echo=FALSE}
+my_sum2W022 <- Dtemp2 %>%
+  group_by(Treatment) %>%
+  summarise( 
+    n=n(),
+    mean=mean(Percent_time_zone1),
+    sd=sd(Percent_time_zone1)
+  ) %>%
+  mutate( se=sd/sqrt(n))  %>%
+  mutate( ic=se * qt((1-0.05)/2 + .5, n-1))# confidence interval
+# Standard Error
+g1W022<-ggplot(my_sum2W022) +
+  geom_bar( aes(x=Treatment, y=mean), stat="identity", fill="forestgreen", alpha=0.5) +
+  geom_errorbar( aes(x=Treatment, ymin=mean-se, ymax=mean+se), width=0.4, colour="orange", alpha=0.9, size=1.5) +
+  ggtitle("The mean time spent with Object side 1 22'") + ylim (0,100)
+summary(my_sum2W022)
+```
+
+```{r}
+grid.arrange(g1W022, g2W022, ncol = 2)
+```
+
+
+
+## Side preference grouped by sex {.tabset}
+
+### Week 0
+```{r, echo=FALSE}
+#Comparing the sex effect on side preference Week 0
+W0_NO %>% filter(Novel_Object_Side == '2') %>%
+  ggplot( aes(x= Sex, y= Percent_time_zone1, fill = Treatment))+
+  geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+    geom_jitter(color="black", size=0.4, alpha=0.9)    +
+  geom_signif(comparisons = list(c("F", "M")), 
+              map_signif_level=TRUE)+
+  labs(title = "Plot of time spent with Familiar Object at zone 1, RI 1 @ W0")
+
+W0_NO %>% filter(Novel_Object_Side == '1')%>%
+  ggplot( aes(x= Sex, y= Percent_time_zone2, fill = Treatment))+
+  geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6)  +
+  geom_signif(comparisons = list(c("F", "M")), 
+              map_signif_level=TRUE)+
+    geom_jitter(color="black", size=0.4, alpha=0.9) +
+  labs(title = "Plot of time spent with Familiar Object at zone 2, RI 1 @ W0")
+```
+
+### Week 1
+
+```{r, echo=FALSE}
+# WEEK 1 preference for side grouped by sex
+W1_NO %>% filter(Novel_Object_Side == '2') %>%
+  ggplot( aes(x= Sex, y= Percent_time_zone1, fill = Treatment))+
+  geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6)  +
+  geom_signif(comparisons = list(c("F", "M")), 
+              map_signif_level=TRUE)+
+    geom_jitter(color="black", size=0.4, alpha=0.9)    +
+  labs(title = "Plot of time spent with Familiar Object at zone 1, RI 1 @ W1")
+
+W1_NO %>% filter(Novel_Object_Side == '1')%>%
+  ggplot( aes(x= Sex, y= Percent_time_zone2, fill = Treatment))+
+  geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6)  +
+  geom_signif(comparisons = list(c("F", "M")), 
+              map_signif_level=TRUE)+
+    geom_jitter(color="black", size=0.4, alpha=0.9) +
+  labs(title = "Plot of time spent with Familiar Object at zone 2, RI 1 @ W1")
+
+
+```
+
+### Week 2
+
+```{r, echo=FALSE}
+# WEEK 2 preference for side grouped by sex
+W2_NO %>% filter(Novel_Object_Side == '2') %>%
+  ggplot( aes(x= Sex, y= Percent_time_zone1, fill = Treatment))+
+  geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6)  +
+  geom_signif(comparisons = list(c("F", "M")), 
+              map_signif_level=TRUE)+
+    geom_jitter(color="black", size=0.4, alpha=0.9)    +
+  labs(title = "Plot of time spent with Familiar Object at zone 1, RI 1 @ W2")
+
+W2_NO %>% filter(Novel_Object_Side == '1')%>%
+  ggplot( aes(x= Sex, y= Percent_time_zone2, fill = Treatment))+
+  geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6)  +
+  geom_signif(comparisons = list(c("F", "M")), 
+              map_signif_level=TRUE)+
+    geom_jitter(color="black", size=0.4, alpha=0.9) +
+  labs(title = "Plot of time spent with Familiar Object at zone 2, RI 1 @ W2")
+```
+
+### preenrichment 22'
+
+```{r}
+# Pre enrichment:  preference for side grouped by sex
+W0_NO22 %>% filter(Novel_Object_Side == 'Right') %>%
+  ggplot( aes(x= Sex, y= Percent_time_zone1, fill = Treatment))+
+  geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6)  +
+  geom_signif(comparisons = list(c("F", "M")), 
+              map_signif_level=TRUE)+
+    geom_jitter(color="black", size=0.4, alpha=0.9)    +
+  labs(title = "Plot of time spent with Familiar Object at zone 1 pre-enrichment")
+
+W0_NO22 %>% filter(Novel_Object_Side == 'Left')%>%
+  ggplot( aes(x= Sex, y= Percent_time_zone2, fill = Treatment))+
+  geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6)  +
+  geom_signif(comparisons = list(c("F", "M")), 
+              map_signif_level=TRUE)+
+    geom_jitter(color="black", size=0.4, alpha=0.9) +
+  labs(title = "Plot of time spent with Familiar Object at zone 2 pre-enrichment")
+```
+
+## Novel Object prefrence comparision {.tabset}
+```{r , echo=FALSE}
+# renaming the levels to account for the combine function
+temp2<- temp2%>% rename(Percent_time_zone2=Percent_time_zone1)
+temp2W1<- temp2W1%>% rename(Percent_time_zone2=Percent_time_zone1)
+temp2W2<- temp2W2%>% rename(Percent_time_zone2=Percent_time_zone1)
+Dtemp2<- Dtemp2%>% rename(Percent_time_zone2=Percent_time_zone1)
+```
+
+
+```{r , echo=FALSE}
+# combining the data set with apporpriate novel object side
+W0_combined<-rbind(temp1,temp2) #if this throws a name error run the code above.
+W0_combined<- W0_combined%>% rename(Percent_time_obj=Percent_time_zone2)
+W1_combined<-rbind(temp1W1,temp2W1) #if this throws a name error run the code above.
+W1_combined<- W1_combined%>% rename(Percent_time_obj=Percent_time_zone2)
+W2_combined<-rbind(temp1W2,temp2W2) #if this throws a name error run the code above.
+W2_combined<- W2_combined%>% rename(Percent_time_obj=Percent_time_zone2)
+W0_22_combined <- rbind(Dtemp1,Dtemp2)
+W0_22_combined <- W0_22_combined%>% rename(Percent_time_obj=Percent_time_zone2)
+```
+
+### Grouped by Sex
+```{r , echo=FALSE}
+# Plot of NO A vs B (2 vs 3) in Control vs Enriched comparison for Week 0, 1, 2 grouped by sex
+W0_combined %>% filter(Novel_object == '2') %>%
+  ggplot( aes(x= Sex, y= Percent_time_obj, fill = Treatment))+
+  geom_violin(width=1) + 
+  geom_boxplot(width=1, color="black", alpha=0.2) +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6)  +
+  geom_signif(comparisons = list(c("F", "M")), 
+              map_signif_level=TRUE)+  
+  labs(title = "Plot of time spent with FO Vs. NOa, RI 1 @ week 0")+
+    geom_jitter(color="black", size=0.4, alpha=0.9) 
+
+
+W0_combined %>% filter(Novel_object == '3') %>%
+  ggplot( aes(x= Sex, y= Percent_time_obj, fill = Treatment))+
+  geom_violin(width=1) + 
+  geom_boxplot(width=1, color="black", alpha=0.2) +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  labs(title = "Plot of time spent with FO Vs. NOb, RI 1 @ week 0")+
+    geom_jitter(color="black", size=0.4, alpha=0.9) 
+
+#week 1
+W1_combined %>% filter(Novel_object == '2') %>%
+  ggplot( aes(x= Sex, y= Percent_time_obj, fill = Treatment))+
+  geom_violin(width=1) + 
+  geom_boxplot(width=1, color="black", alpha=0.2) +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  labs(title = "Plot of time spent with FO Vs. NOa, RI 1 @ week 1")+
+    geom_jitter(color="black", size=0.4, alpha=0.9) 
+W1_combined %>% filter(Novel_object == '3') %>%
+  ggplot( aes(x= Sex, y= Percent_time_obj, fill = Treatment))+
+  geom_violin(width=1) + 
+  geom_boxplot(width=1, color="black", alpha=0.2) +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  labs(title = "Plot of time spent with FO Vs. NOb, RI 1 @ week 1")+
+    geom_jitter(color="black", size=0.4, alpha=0.9) 
+
+# week 2
+W2_combined %>% filter(Novel_object == '2') %>%
+  ggplot( aes(x= Sex, y= Percent_time_obj, fill = Treatment))+
+  geom_violin(width=1) + 
+  geom_boxplot(width=1, color="black", alpha=0.2) +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  labs(title = "Plot of time spent with FO Vs. NOa, RI 1 @ week 2")+
+    geom_jitter(color="black", size=0.4, alpha=0.9) 
+W2_combined %>% filter(Novel_object == '3') %>%
+  ggplot( aes(x= Sex, y= Percent_time_obj, fill = Treatment))+
+  geom_violin(width=1) + 
+  geom_boxplot(width=1, color="black", alpha=0.2) +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  labs(title = "Plot of time spent with FO Vs. NOb, RI 1 @ week 2")+
+    geom_jitter(color="black", size=0.4, alpha=0.9) 
+```
+
+```{r}
+# pre-enrichment 
+
+W0_22_combined %>%
+  ggplot( aes(x= Sex, y= Percent_time_obj, fill = Treatment))+
+  geom_violin(width=1) + 
+  geom_boxplot(width=1, color="black", alpha=0.2) +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  labs(title = "Plot of time spent with FO Vs. NOa pre-enrichment")+
+    geom_jitter(color="black", size=0.4, alpha=0.9) 
+```
+
+### Grouped by Novel Object
+```{r , echo=FALSE}
+# Plot of NO A vs B (2 vs 3) in Control vs Enriched comparison for Week 0, 1, 2 grouped by Novel object
+W0_combined$Novel_object <- as.factor(as.numeric(W0_combined$Novel_object)) #set as factor, to compare as group
+W1_combined$Novel_object <- as.factor(as.numeric(W1_combined$Novel_object))
+W2_combined$Novel_object <- as.factor(as.numeric(W2_combined$Novel_object))
+#W0_22_combined$Type<- as.factor(as.character(W0_22_combined$Type))
+
+```
+
+
+```{r , echo=FALSE}
+W0_combined %>%
+  ggplot( aes(x= Novel_object, y= Percent_time_obj, fill = Treatment))+
+  geom_violin(width=1) + 
+  geom_boxplot(width=1, color="black", alpha=0.2) +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  labs(title = "Plot of time spent with Familiar Objects, RI 1 @ week 0")+
+    geom_jitter(color="black", size=0.4, alpha=0.9) 
+W1_combined %>%
+  ggplot( aes(x= Novel_object, y= Percent_time_obj, fill = Treatment))+
+  geom_violin(width=1) + 
+  geom_boxplot(width=1, color="black", alpha=0.2) +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  labs(title = "Plot of time spent with Familiar Objects, RI 1 @ week 1")+
+    geom_jitter(color="black", size=0.4, alpha=0.9) 
+W2_combined %>%
+  ggplot( aes(x= Novel_object, y= Percent_time_obj, fill = Treatment))+
+  geom_violin(width=1) + 
+  geom_boxplot(width=1, color="black", alpha=0.2) +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  labs(title = "Plot of time spent with Familair Objects, RI 1 @ week 2")+
+    geom_jitter(color="black", size=0.4, alpha=0.9) 
+
+Combined21 <- rbind(W0_combined ,W1_combined ,W2_combined )
+Combined21$Week <- as.factor(as.numeric(Combined21$Week))
+Combined21$Novel_object<-fct_recode(Combined21$Novel_object, A = "2", B = "3")
+
+Combined21 %>%
+  ggplot( aes(x= Novel_object, y= Percent_time_obj, fill = Treatment))+
+  geom_violin(width=1) + 
+  geom_boxplot(width=1, color="black", alpha=0.2) +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  labs(title = "Plot of time spent with Familair Objects, RI 1")+
+    geom_jitter(color="black", size=0.4, alpha=0.9) + facet_grid(cols = vars(Week))
+```
+
+
+
+```{r}
+W0_22_combined %>%
+  ggplot( aes(x= Test, y= Percent_time_obj, fill = Treatment))+
+  geom_violin(width=1) + 
+  geom_boxplot(width=1, color="black", alpha=0.2) +
+  
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  labs(title = "Plot of time spent with Familiar Objects pre-enrichment")+
+    geom_jitter(color="black", size=0.4, alpha=0.9) 
+```
+
+# T-TEST {.tabset}
+
+## T-TEST side preference
+
+```{r , echo=FALSE}
+#ttest for side preference
+t.test(W0_NO$Percent_time_zone1,W0_NO$Percent_time_zone2, paired = TRUE) 
+t.test(W1_NO$Percent_time_zone1,W1_NO$Percent_time_zone2, paired = TRUE)
+t.test(W2_NO$Percent_time_zone1,W2_NO$Percent_time_zone2, paired = TRUE)
+
+```
+
+
+pre enrichment
+
+```{r echo=FALSE}
+#ttest for side preference
+t.test(W0_NO22$Percent_time_zone1,W0_NO22$Percent_time_zone2, paired = TRUE)
+```
+
+## T-TEST object preference
+```{r , echo=FALSE}
+#ttest for object preference
+NOa<-W0_combined %>% filter(Novel_object == '2') %>% select(Percent_time_obj)
+NOb<-W0_combined %>% filter(Novel_object == '3')  %>% select(Percent_time_obj)
+t.test(NOa,NOb)
+
+NOa<-W1_combined %>% filter(Novel_object == '2') %>% select(Percent_time_obj)
+NOb<-W1_combined %>% filter(Novel_object == '3')  %>% select(Percent_time_obj)
+t.test(NOa,NOb)
+
+NOa<-W2_combined %>% filter(Novel_object == '2') %>% select(Percent_time_obj)
+NOb<-W2_combined %>% filter(Novel_object == '3')  %>% select(Percent_time_obj)
+t.test(NOa,NOb)
+```
+
+Pre enrichment Control vs Enriched RI 1
+```{r}
+E22<-W0_22_combined %>% filter(Treatment == 'Enriched') %>% select(Percent_time_obj)
+C22<-W0_22_combined%>% filter(Treatment == 'Control')  %>% select(Percent_time_obj)
+t.test(E22,C22)
+```
+
+## T-TEST Novel Tank Test
+```{r echo=FALSE}
+#Ttest for Novel Tank, paired control vs enriched
+
+TopC<-W0_NT %>% filter(Treatment == 'Control') %>% select(Top_zone_pt)
+TopE<-W0_NT%>% filter(Treatment == 'Enriched')  %>% select(Top_zone_pt)
+TopW0<-t.test(TopC,TopE)
+MidC<-W0_NT %>% filter(Treatment == 'Control') %>% select(Middle_zone_pt)
+MidE<-W0_NT%>% filter(Treatment == 'Enriched')  %>% select(Middle_zone_pt)
+MidW0<-t.test(MidC,MidE)
+BotC<-W0_NT %>% filter(Treatment == 'Control') %>% select(Bottom_zone_pt)
+BotE<-W0_NT%>% filter(Treatment == 'Enriched')  %>% select(Bottom_zone_pt)
+BotW0<-t.test(BotC,BotE)
+
+
+TopC<-W1_NT %>% filter(Treatment == 'Control') %>% select(Top_zone_pt)
+TopE<-W1_NT%>% filter(Treatment == 'Enriched')  %>% select(Top_zone_pt)
+TopW1<-t.test(TopC,TopE)
+MidC<-W1_NT %>% filter(Treatment == 'Control') %>% select(Middle_zone_pt)
+MidE<-W1_NT%>% filter(Treatment == 'Enriched')  %>% select(Middle_zone_pt)
+MidW1<-t.test(MidC,MidE)
+BotC<-W1_NT %>% filter(Treatment == 'Control') %>% select(Bottom_zone_pt)
+BotE<-W1_NT%>% filter(Treatment == 'Enriched')  %>% select(Bottom_zone_pt)
+BotW1<-t.test(BotC,BotE)
+
+
+TopC<-W2_NT %>% filter(Treatment == 'control') %>% select(Top_zone_pt)
+TopE<-W2_NT%>% filter(Treatment == 'enriched')  %>% select(Top_zone_pt)
+TopW2<-t.test(TopC,TopE)
+MidC<-W2_NT %>% filter(Treatment == 'control') %>% select(Middle_zone_pt)
+MidE<-W2_NT%>% filter(Treatment == 'enriched')  %>% select(Middle_zone_pt)
+MidW2<-t.test(MidC,MidE)
+BotC<-W2_NT %>% filter(Treatment == 'control') %>% select(Bottom_zone_pt)
+BotE<-W2_NT%>% filter(Treatment == 'enriched')  %>% select(Bottom_zone_pt)
+BotW2<-t.test(BotC,BotE)
+```
+
+
+```{r echo=FALSE}
+tab <- matrix(c(TopW0$p.value,MidW0$p.value,BotW0$p.value,TopW1$p.value,MidW1$p.value,BotW1$p.value,TopW2$p.value,MidW2$p.value,BotW2$p.value), ncol=3, byrow=TRUE)
+colnames(tab) <- c('Top-Zone','Middle-Zone','Bottom-Zone')
+rownames(tab) <- c('Week-0','Week-1','Week-2')
+tab <- as.table(tab) 
+tab
+```
+ 
+ 
+ 
+# RI1 Vs. RI6 
+```{r echo=FALSE}
+# RI1 vs RI6
+temp1_RI6<- W0_NO_RI6 %>% filter(Novel_Object_Side == '1') %>% select(Test, Subject, Week, Sex, Novel_object, Treatment,Percent_time_zone2) #i.e, select FO
+temp2_RI6<- W0_NO_RI6 %>% filter(Novel_Object_Side == '2') %>% select(Test, Subject, Week,Sex, Novel_object, Treatment, Percent_time_zone1)
+temp2_RI6<- temp2_RI6%>% rename(Percent_time_zone2=Percent_time_zone1)
+W0_RI6_combined <-rbind(temp1_RI6,temp2_RI6)
+W0_RI6_combined<- W0_RI6_combined%>% rename(Percent_time_obj=Percent_time_zone2)
+W0_RI6_combined$Novel_object <- as.factor(as.numeric(W0_RI6_combined$Novel_object))
+W0_RI6_combined %>%
+  ggplot( aes(x= Novel_object, y= Percent_time_obj, fill = Treatment))+
+  geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+    geom_jitter(color="black", size=0.4, alpha=0.9) +
+  labs(title = "Combined Plot of time spent with Novel Object RI 6 @ Week 0")
+```
+
+```{r echo=FALSE}
+
+temp1_RI6<- W1_NO_RI6 %>% filter(Novel_Object_Side == '1') %>% select(Test, Subject, Week, Sex, Novel_object, Treatment,Percent_time_zone2) #i.e, select FO
+temp2_RI6<- W1_NO_RI6 %>% filter(Novel_Object_Side == '2') %>% select(Test, Subject, Week,Sex, Novel_object, Treatment, Percent_time_zone1)
+temp2_RI6<- temp2_RI6%>% rename(Percent_time_zone2=Percent_time_zone1)
+W1_RI6_combined <-rbind(temp1_RI6,temp2_RI6)
+W1_RI6_combined<- W1_RI6_combined%>% rename(Percent_time_obj=Percent_time_zone2)
+W1_RI6_combined$Novel_object <- as.factor(as.numeric(W1_RI6_combined$Novel_object))
+W1_RI6_combined %>%
+  ggplot( aes(x= Novel_object, y= Percent_time_obj, fill = Treatment))+
+  geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+    geom_jitter(color="black", size=0.4, alpha=0.9) +
+  labs(title = "Combined Plot of time spent with Novel Object RI 6 @ Week 1")
+
+```
+
+```{r echo=FALSE}
+
+temp1_RI6<- W2_NO_RI6 %>% filter(Novel_Object_Side == '1') %>% select(Test, Subject, Week, Sex, Novel_object, Treatment,Percent_time_zone2) #i.e, select FO
+temp2_RI6<- W2_NO_RI6 %>% filter(Novel_Object_Side == '2') %>% select(Test, Subject, Week,Sex, Novel_object, Treatment, Percent_time_zone1)
+temp2_RI6<- temp2_RI6%>% rename(Percent_time_zone2=Percent_time_zone1)
+W2_RI6_combined <-rbind(temp1_RI6,temp2_RI6)
+W2_RI6_combined<- W2_RI6_combined%>% rename(Percent_time_obj=Percent_time_zone2)
+W2_RI6_combined$Novel_object <- as.factor(as.numeric(W2_RI6_combined$Novel_object))
+W2_RI6_combined %>%
+  ggplot( aes(x= Novel_object, y= Percent_time_obj, fill = Treatment))+
+  geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+    geom_jitter(color="black", size=0.4, alpha=0.9) +
+  labs(title = "Combined Plot of time spent with Novel Object RI 6 @ Week 2")
+
+```
+
+```{r echo=FALSE}
+RI6Combined<- rbind (W0_RI6_combined,W1_RI6_combined,W2_RI6_combined)
+class(RI6Combined$Novel_object)
+RI6Combined$Novel_object<-fct_recode(RI6Combined$Novel_object, A = "2", B = "3")
+
+RI6Combined %>%
+  ggplot( aes(x= Novel_object, y= Percent_time_obj, fill = Treatment))+
+  geom_violin(width=1) + 
+  geom_boxplot(width=1, color="black", alpha=0.2) +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  labs(title = "Plot of time spent with Familair Objects, RI 6")+
+    geom_jitter(color="black", size=0.4, alpha=0.9) + facet_grid(cols = vars(Week))
+```
+
+Pre-enrichment RI6
+
+```{r echo=FALSE}
+temp1_RI6<- WO22_NO_RI6 %>% filter(Novel_Object_Side == 'Left') %>% select(ID,Test, Subject,Sex,Treatment,Percent_time_zone2) #i.e, select FO
+temp2_RI6<- WO22_NO_RI6 %>% filter(Novel_Object_Side == 'Right') %>% select(ID,Test, Subject,Sex,Treatment,Percent_time_zone1)
+temp2_RI6<- temp2_RI6%>% rename(Percent_time_zone2=Percent_time_zone1)
+WO22_NO_RI6_combined <-rbind(temp1_RI6,temp2_RI6)
+WO22_NO_RI6_combined<- WO22_NO_RI6_combined%>% rename(Percent_time_obj=Percent_time_zone2)
+WO22_NO_RI6_combined %>%
+  ggplot( aes(x= Test, y= Percent_time_obj, fill = Treatment))+
+  geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+    geom_jitter(color="black", size=0.4, alpha=0.9) +
+  labs(title = "Combined Plot of time spent with Novel Object RI 6 @ Preenrichment 2022")
+```
+
+Paired charts
+
+```{r echo=FALSE}
+W0_paired1 <- W0_paired %>% filter(Test=="NO_RI_1" | Test=="NO_RI_6") #### fix and rename W0_PAIRED is a master dataframe for another analysis #update: replaced with W0_paired1
+temp1_W0_paired<- W0_paired1 %>% filter(Novel_Object_Side == '1') %>% select(Test, Subject,Week, Sex, Novel_object, Treatment,Percent_time_zone2) #i.e, select FO
+temp2_W0_paired<- W0_paired1%>% filter(Novel_Object_Side == '2') %>% select(Test, Subject, Week, Sex, Novel_object, Treatment, Percent_time_zone1)
+temp2_W0_paired<- temp2_W0_paired%>% rename(Percent_time_zone2=Percent_time_zone1)
+W0_paired_combined <-rbind(temp1_W0_paired,temp2_W0_paired)
+W0_paired_combined<- W0_paired_combined%>% rename(Percent_time_obj=Percent_time_zone2)
+W0_paired_combined$Novel_object <- as.factor(as.numeric(W0_paired_combined$Novel_object))
+```
+
+
+```{r echo=FALSE}
+W1_paired1 <- W1_paired %>% filter(Test=="NO_RI_1" | Test=="NO_RI_6")
+temp1_W1_paired<- W1_paired1 %>% filter(Novel_Object_Side == '1') %>% select(Test, Subject, Week, Sex, Novel_object, Treatment,Percent_time_zone2) #i.e, select FO
+temp2_W1_paired<- W1_paired1%>% filter(Novel_Object_Side == '2') %>% select(Test, Subject, Week, Sex, Novel_object, Treatment, Percent_time_zone1)
+temp2_W1_paired<- temp2_W1_paired%>% rename(Percent_time_zone2=Percent_time_zone1)
+W1_paired_combined <-rbind(temp1_W1_paired,temp2_W1_paired)
+W1_paired_combined<- W1_paired_combined%>% rename(Percent_time_obj=Percent_time_zone2)
+W1_paired_combined$Novel_object <- as.factor(as.numeric(W1_paired_combined$Novel_object))
+```
+
+```{r echo=FALSE}
+W2_paired1 <- W2_paired %>% filter(Test=="NO_RI_1" | Test=="NO_RI_6")
+temp1_W2_paired<- W2_paired1 %>% filter(Novel_Object_Side == '1') %>% select(Test, Subject, Week, Sex, Novel_object, Treatment,Percent_time_zone2) #i.e, select FO
+temp2_W2_paired<- W2_paired1 %>% filter(Novel_Object_Side == '2') %>% select(Test, Subject, Week, Sex, Novel_object, Treatment, Percent_time_zone1)
+temp2_W2_paired<- temp2_W2_paired%>% rename(Percent_time_zone2=Percent_time_zone1)
+W2_paired_combined <-rbind(temp1_W2_paired,temp2_W2_paired)
+W2_paired_combined<- W2_paired_combined%>% rename(Percent_time_obj=Percent_time_zone2)
+W2_paired_combined$Novel_object <- as.factor(as.numeric(W2_paired_combined$Novel_object))
+W2_paired_combined<-W2_paired_combined[-c(13),] # subject missing removing because it skews the mann whitney u
+```
+
+
+```{r echo=FALSE}
+Eth21 <-rbind(W0_paired_combined,W1_paired_combined,W2_paired_combined)
+```
+
+
+
+```{r echo=FALSE}
+ggplot(Eth21, aes(x = Test, y = Percent_time_obj)) + 
+geom_boxplot(aes(fill= Novel_object), alpha = .2) +
+geom_line(aes(group = Subject)) + 
+geom_point(size = 2, shape = Eth21$Novel_object)+
+  
+facet_wrap(~ Treatment)
+```
+
+```{r echo=FALSE}
+px<- Eth21%>% filter(Week == "1")
+Eth21%>% filter(Week == "0")%>%ggplot(aes(x = Test, y = Percent_time_obj)) + 
+geom_boxplot(aes(fill= Novel_object), alpha = .2) +
+geom_line(aes(group = Subject)) + 
+geom_point(size = 2, shape = px$Novel_object) + 
+facet_wrap(~ Treatment) + stat_compare_means(paired = TRUE, label.y = 102)
+
+px<- Eth21%>% filter(Week == "1")
+Eth21%>% filter(Week == "1")%>%ggplot(aes(x = Test, y = Percent_time_obj)) + 
+geom_boxplot(aes(fill= Novel_object), alpha = .2) +
+geom_line(aes(group = Subject)) + 
+geom_point(size = 2, shape = px$Novel_object) + 
+facet_wrap(~ Treatment)
+
+px<- Eth21%>% filter(Week == "2")
+Eth21%>% filter(Week == "2")%>%ggplot(aes(x = Test, y = Percent_time_obj)) + 
+geom_boxplot(aes(fill= Novel_object), alpha = .2) +
+geom_line(aes(group = Subject)) + 
+geom_point(size = 2, shape = px$Novel_object) + 
+facet_wrap(~ Treatment) + stat_compare_means(paired = TRUE, label.y = 102)
+
+
+Eth21%>% ggplot(aes(x = Test, y = Percent_time_obj)) + 
+geom_boxplot(aes(fill= Novel_object), alpha = .2, ylim= c(0,120)) +
+geom_line(aes(group = Subject)) + 
+geom_point(size = 2) + stat_compare_means(paired = TRUE, label.y = 101)+
+facet_grid(rows= vars(Treatment), cols=vars(Week)) + theme(panel.spacing.y = unit(2, "lines"))
+
+```
+
+Preenrichment Paired analysis
+
+```{r echo=FALSE}
+WO22_paired <- WO22_paired %>% filter(Test=="Preference NO21a vs FO21" | Test=="Preference NO21b vs FO21")
+temp1_WO22_paired<- WO22_paired %>% filter(Novel_Object_Side == 'Left') %>% select(ID,Test, Subject,Sex,Treatment,Percent_time_zone2) #i.e, select FO
+temp2_WO22_paired<- WO22_paired%>% filter(Novel_Object_Side == 'Right') %>% select(ID,Test, Subject,Sex,Treatment,Percent_time_zone1)
+temp2_WO22_paired<- temp2_WO22_paired%>% rename(Percent_time_zone2=Percent_time_zone1)
+WO22_paired_combined <-rbind(temp1_WO22_paired,temp2_WO22_paired)
+WO22_paired_combined<- WO22_paired_combined%>% rename(Percent_time_obj=Percent_time_zone2)
+
+ggplot(WO22_paired_combined, aes(x = Test, y = Percent_time_obj)) + 
+geom_boxplot(aes(fill= Treatment), alpha = .2) +
+geom_line(aes(group = Subject)) + 
+geom_point(size = 2, shape = WO22_paired_combined$Test)+  stat_compare_means(paired = TRUE, label.y = 101)+
+facet_wrap(~ Treatment)
+```
+
+
+# Applying Lego Paper
+
+The primary study design we attempted to replicate in this experiment is from a paper by May et. al. tittled "Object recognition memory in zebrafish". Link: https://pubmed.ncbi.nlm.nih.gov/26376244/ 
+
+```{r echo=FALSE}
+# Exploration 1 : Time Spent With FOs in FO trial
+W0_Lego<- W0_paired %>% filter(Test == "FO") 
+W0_Lego<- W0_Lego[,-c(1,5,6,8:11)]
+xtemp<- W0_paired %>% filter(Test == "FO")
+W0_Lego$E1<-(xtemp$Object_Zone_1+xtemp$Object_Zone_2)
+W0_Lego<- W0_Lego[order(W0_Lego$Subject),]
+
+```
+
+
+```{r echo=FALSE}
+# Exploration 2 : Time Spent With FO in NO Trials + NO Zone
+xtemp<- W0_paired %>% filter(Test == "NO_RI_1")
+
+e2temp1<- xtemp%>% filter(Novel_Object_Side == '1') %>% select(Subject, Object_Zone_1, Object_Zone_2) %>% rename(FO_Zone = "Object_Zone_2") #i.e, select NO
+e2temp1$E2<- (e2temp1$Object_Zone_1+e2temp1$FO_Zone)
+
+e2temp2<- xtemp%>% filter(Novel_Object_Side == '2') %>% select(Subject, Object_Zone_1, Object_Zone_2) %>% rename(FO_Zone = "Object_Zone_1") #i.e, select NO
+e2temp2$E2<- (e2temp2$Object_Zone_2+e2temp2$FO_Zone)
+
+E2 <- rbind (e2temp1[,-c(2,3)],e2temp2[,-c(2,3)])
+E2 <- E2 [order(E2 $Subject),]
+
+W0_Lego$E2 <- E2$E2
+```
+
+```{r echo=FALSE}
+# Discrimination 1: Time Spent With FO Zone in NO Trials - NO Zone
+d1temp1<- e2temp1%>%select(Subject,FO_Zone)
+d1temp1$D1<- e2temp1$FO_Zone- e2temp1$Object_Zone_1
+d1temp2<- e2temp2%>%select(Subject,FO_Zone)
+d1temp2$D1<- e2temp2$FO_Zone- e2temp2$Object_Zone_2
+
+D1temp<- rbind(d1temp1, d1temp2)
+D1temp <- D1temp [order(D1temp$Subject),]
+
+W0_Lego$D1 <- D1temp$D1
+```
+
+```{r echo=FALSE}
+# Discrimination 2: D1 / E2
+W0_Lego$D2<- (W0_Lego$D1)/(W0_Lego$E2)
+# Discrimination 3: Time Spent With FO Zone in NO Trials / E2 i.e Percent time zone without the *100%
+W0_Lego$D3<- (D1temp$FO_Zone)/(W0_Lego$E2)
+```
+
+The discrimination indices were statistically compared to a theoretical mean of 0 for D1 and D2 and a mean of 0.5 for D3. A significant difference from this theoretical mean represents a preference for the familiar or novel object in T2, with a positive value indicating a preference for the familiar object and a negative index indicating a preference for the novel object (May et al., 2016).
+
+
+```{r echo=FALSE}
+#Zebra fish investigatory behavior is positively associated with the magnitude of familiarity preference i.e, the more they explored the objects in the FO trial the more they prefered the familiar object
+
+#lm(D1~E1, W0_Lego)
+t.test(W0_Lego$D1,W0_Lego$E1, paired = TRUE) #Paired T-Test
+cor.test(W0_Lego$D1,W0_Lego$E1) #Pearson's Correlation
+ggplot(W0_Lego, aes(x = E1, y = D1)) +  
+geom_point(aes(color= Treatment))+ geom_smooth(method=lm , color="red", se=TRUE) + labs(title = "D1 vs E1 for W0 + Linear Model")
+```
+
+```{r echo=FALSE}
+#Week 1
+W1_Lego<- W1_paired %>% filter(Test == "FO") 
+W1_Lego<- W1_Lego[,-c(1,5,6,8:11)]
+xtemp<- W1_paired %>% filter(Test == "FO")
+W1_Lego$E1<-(xtemp$Object_Zone_1+xtemp$Object_Zone_2)
+W1_Lego<- W1_Lego[order(W1_Lego$Subject),]
+
+# Exploration 2 : Time Spent With FO in NO Trials + NO Zone
+xtemp<- W1_paired %>% filter(Test == "NO_RI_1")
+e2temp1<- xtemp%>% filter(Novel_Object_Side == '1') %>% select(Subject, Object_Zone_1, Object_Zone_2) %>% rename(FO_Zone = "Object_Zone_2") #i.e, select NO
+e2temp1$E2<- (e2temp1$Object_Zone_1+e2temp1$FO_Zone)
+e2temp2<- xtemp%>% filter(Novel_Object_Side == '2') %>% select(Subject, Object_Zone_1, Object_Zone_2) %>% rename(FO_Zone = "Object_Zone_1") #i.e, select NO
+e2temp2$E2<- (e2temp2$Object_Zone_2+e2temp2$FO_Zone)
+E2 <- rbind (e2temp1[,-c(2,3)],e2temp2[,-c(2,3)])
+E2 <- E2 [order(E2 $Subject),]
+W1_Lego$E2 <- E2$E2
+
+# Discrimination 1: Time Spent With FO Zone in NO Trials - NO Zone
+d1temp1<- e2temp1%>%select(Subject,FO_Zone)
+d1temp1$D1<- e2temp1$FO_Zone- e2temp1$Object_Zone_1
+d1temp2<- e2temp2%>%select(Subject,FO_Zone)
+d1temp2$D1<- e2temp2$FO_Zone- e2temp2$Object_Zone_2
+D1temp<- rbind(d1temp1, d1temp2)
+D1temp <- D1temp [order(D1temp$Subject),]
+W1_Lego$D1 <- D1temp$D1
+
+# Discrimination 2: D1 / E2
+W1_Lego$D2<- (W1_Lego$D1)/(W1_Lego$E2)
+# Discrimination 3: Time Spent With FO Zone in NO Trials / E2 i.e Percent time zone without the *100%
+W1_Lego$D3<- (D1temp$FO_Zone)/(W1_Lego$E2)
+
+```
+
+```{r echo=FALSE}
+#lm(D1~E1, W0_Lego)
+t.test(W1_Lego$D1,W1_Lego$E1, paired = TRUE) #Paired T-Test
+cor.test(W1_Lego$D1,W1_Lego$E1) #Pearson's Correlation
+ggplot(W1_Lego, aes(x = E1, y = D1)) +  
+geom_point(aes(color= Treatment))+ geom_smooth(method=lm , color="red", se=TRUE) + labs(title = "D1 vs E1 for W1 + Linear Model")
+```
+
+
+#Other analysis:
+`
+## Principle component analysis
+
+```{r}
+W0_numeric <- W0_Lego %>% select(E1,E2,D1,D2,D3) 
+W0_pca<- prcomp(W0_numeric, center = TRUE,scale. = TRUE)
+```
+
+```{r , echo=FALSE}
+summary(W0_pca)
+#display principal components
+W0_pca$rotation
+library(ggfortify)
+autoplot(W0_pca,loadings = TRUE, loadings.label = TRUE, loadings.label.size  = 5)
+```
+
+
+```{r , echo=FALSE}
+#Other PCA analysis if of interest
+W0_numeric <- Week_0 %>% filter(...1 == 'NO_RI_1' | ...1 == 'NO_RI_6')
+ W0_numeric <- W0_numeric[-c(1,2,3),c(9,10,12:14,27,29,31:36,43:48)]
+i <- c(1:19) 
+W0_numeric[ , i] <- apply(W0_numeric[ , i], 2,            # Specify own function within apply change values to numeric
+                    function(x) as.numeric(as.character(x)))
+W0_numeric<- W0_numeric %>% mutate_all(~replace(., is.na(.), 0)) #not doing na.omit because these values are meaningful
+W0_pca <- prcomp(W0_numeric, center = TRUE,scale. = TRUE)
+```
+
+
+### Scree Plots:
+
+```{r}
+#calculate total variance explained by each principal component
+var_explained <- W0_pca$sdev^2 / sum(W0_pca$sdev^2)
+?ggplot
+#create scree plot
+qplot(c(1:length(var_explained)), var_explained) + 
+  geom_line() + 
+  xlab("Principal Component (Dimension)") + 
+  ylab("Variance Explained") +
+  ggtitle("Scree Plot") +
+  ylim(0, 1)
+```
+
+
+
+#Moving Forward:
+
+This document (R-Markdown file) provides all the necessary code to replicate this analysis on a different data set. However, the error calculation at the top should ALWAYS be performed first in order to avoid analyzing biased data. In addition, this analysis ios far from over. There should be a repeated trial with a larger sample to confirm findings. 
+
+After discussing how much error is acceptable for your question, you can go ahead with the analysis. Load up the data using readxl or readcsv depending on the file type or read URL if online. I would recommend copying the code I used before modifying it and then replacing the names with your data. 
+You should mostly just be replacing the names. The formula should remain the same for the most part.
+
+If you want to modify something you can check what it does first by typing: ?TERM, i.e, ?ggplot would bring the r documentation for ggplot.
+
+Helpful links:
+  - info for graphs: https://r-graph-gallery.com/ggplot2-package.html
+  - How to pretty much anything in R: https://www.statology.org/r-guides/
+  - Questions: https://www.geeksforgeeks.org/r-tutorial/ or stack overflow
+  - tip while Googling add 'how to ... in r' so it is r specific and doesn't return python/pandas 
+
+
+
